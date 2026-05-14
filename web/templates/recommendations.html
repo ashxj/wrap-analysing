@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+{% block title %}e-klase Analytics{% endblock %}
+{% block page_attrs %}data-i18n="page.ai"{% endblock %}
+{% block page_title %}AI Ieteikumi{% endblock %}
+
+{% block content %}
+
+<p style="color:var(--text-muted);font-size:0.875rem;margin-bottom:24px" data-i18n="ai.subtitle">
+  Claude AI finds theory resources for the specific topics you have studied, prioritising topics with lower grades.
+  Cache is refreshed every 7 days or on manual refresh.
+</p>
+
+{% if subjects %}
+  {% for s in subjects %}
+  <div class="rec-card">
+    <div class="rec-subject-header">
+      <div style="display:flex;align-items:center;gap:10px">
+        <span style="font-weight:600;font-size:0.95rem">{{ s.subject }}</span>
+        {% if s.is_weak %}
+          <span class="weak-badge" data-i18n="subjects.weak_badge">Vājš</span>
+        {% endif %}
+        {% if s.average is not none %}
+          {% if s.average >= 7 %}{% set pill_cls = 'avg-high' %}
+          {% elif s.average >= 5 %}{% set pill_cls = 'avg-mid' %}
+          {% else %}{% set pill_cls = 'avg-low' %}{% endif %}
+          <span class="avg-pill {{ pill_cls }}">{{ '%.2f'|format(s.average) }}</span>
+        {% endif %}
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        {% if s.topics %}
+          <span style="font-size:0.75rem;color:var(--text-muted)">
+            {{ s.topics | length }}&nbsp;<span data-i18n="ai.topics_count">topics</span>
+          </span>
+        {% endif %}
+        <form action="{{ url_for('ai.refresh', subject=s.subject) }}" method="post" style="margin:0">
+          <button type="submit" class="btn btn-secondary btn-sm" title="Refresh recommendations">
+            <span data-i18n="ai.refresh">Atjaunot</span>
+          </button>
+        </form>
+      </div>
+    </div>
+
+    {% if s.topics %}
+    <div class="rec-topics-bar">
+      <span style="font-size:0.72rem;color:var(--text-muted);font-weight:500;flex-shrink:0" data-i18n="ai.studied_topics">Studied topics:</span>
+      <div class="rec-topic-list">
+        {% for topic in s.topics[:8] %}
+          <span class="rec-topic-tag">{{ topic }}</span>
+        {% endfor %}
+        {% if s.topics | length > 8 %}
+          <span class="rec-topic-tag rec-topic-more">+{{ s.topics | length - 8 }}</span>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+
+    <div class="rec-list">
+      {% if s.recommendations %}
+        {% for rec in s.recommendations %}
+          {% if rec.type == 'youtube' %}{% set icon_cls = 'rec-icon-youtube' %}
+          {% elif rec.type == 'book' %}{% set icon_cls = 'rec-icon-book' %}
+          {% elif rec.type == 'course' %}{% set icon_cls = 'rec-icon-course' %}
+          {% else %}{% set icon_cls = 'rec-icon-website' %}{% endif %}
+
+          <div class="rec-item">
+            <div class="rec-icon {{ icon_cls }}">
+              {% if rec.type == 'youtube' %}
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="16" height="16">
+                <circle cx="8" cy="8" r="7"/>
+                <polygon points="6.5,5.5 11.5,8 6.5,10.5" fill="currentColor" stroke="none"/>
+              </svg>
+              {% elif rec.type == 'book' %}
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="16" height="16">
+                <path d="M2 2h5a1 1 0 0 1 1 1v11a1 1 0 0 0-1-1H2V2z"/>
+                <path d="M14 2H9a1 1 0 0 0-1 1v11a1 1 0 0 1 1-1h5V2z"/>
+              </svg>
+              {% elif rec.type == 'course' %}
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="16" height="16">
+                <path d="M1 5l7-3 7 3-7 3-7-3z"/>
+                <path d="M4 6.5v4c0 1 1.8 2 4 2s4-1 4-2v-4"/>
+                <line x1="14" y1="5" x2="14" y2="10"/>
+              </svg>
+              {% else %}
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="16" height="16">
+                <circle cx="8" cy="8" r="7"/>
+                <path d="M1 8h14M8 1a11 11 0 0 1 0 14M8 1a11 11 0 0 0 0 14"/>
+              </svg>
+              {% endif %}
+            </div>
+
+            <div style="flex:1;min-width:0">
+              <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+                <a href="{{ rec.url }}" target="_blank" rel="noopener" class="rec-title">{{ rec.title }}</a>
+                <span class="lang-tag">{{ rec.language or 'en' }}</span>
+              </div>
+              <div class="rec-desc">{{ rec.description or '' }}</div>
+              {% if rec.covers %}
+              <div class="rec-covers">
+                {% for topic in rec.covers %}
+                  <span class="rec-cover-tag">{{ topic }}</span>
+                {% endfor %}
+              </div>
+              {% endif %}
+            </div>
+
+            <a href="{{ rec.url }}" target="_blank" rel="noopener"
+               class="btn btn-secondary btn-sm" style="flex-shrink:0" data-i18n="ai.open">
+              Atvērt →
+            </a>
+          </div>
+        {% endfor %}
+      {% else %}
+        <div style="padding:20px;color:var(--text-muted);font-size:0.85rem;text-align:center"
+             data-i18n="ai.no_rec">
+          Click «Refresh» to get recommendations.
+        </div>
+      {% endif %}
+    </div>
+  </div>
+  {% endfor %}
+
+{% else %}
+  <div class="empty-state">
+    <div class="empty-state-icon">—</div>
+    <div class="empty-state-title" data-i18n="ai.no_data">No data</div>
+    <p data-i18n="ai.no_grades">Load your grades first, then AI can find theory resources.</p>
+  </div>
+{% endif %}
+
+{% endblock %}

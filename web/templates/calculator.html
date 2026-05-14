@@ -1,0 +1,168 @@
+{% extends "base.html" %}
+{% block title %}e-klase Analytics{% endblock %}
+{% block page_attrs %}data-i18n="page.calculator"{% endblock %}
+{% block page_title %}Atzīmju kalkulators{% endblock %}
+
+{% block content %}
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:start">
+
+  {# ── Form ── #}
+  <div>
+    <div class="calc-form">
+      <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:20px" data-i18n="calc.description">
+        Izvēlieties priekšmetu, norādiet vēlamo gala atzīmi un cik darbu vēl atlikuši — sistēma aprēķinās nepieciešamo vidējo.
+      </p>
+
+      <form method="post">
+        <div class="form-group">
+          <label for="subject" data-i18n="calc.subject">Priekšmets</label>
+          <select id="subject" name="subject" required>
+            <option value="" data-i18n="calc.choose_subject">— izvēlieties priekšmetu —</option>
+            {% for s in subjects %}
+              <option value="{{ s }}" {% if s == selected_subject %}selected{% endif %}>{{ s }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+          <div class="form-group">
+            <label for="desired_avg" data-i18n="calc.desired_avg">Vēlamā atzīme</label>
+            <input type="number" id="desired_avg" name="desired_avg"
+                   min="1" max="10" step="0.5"
+                   value="{{ desired_avg or 7 }}" required>
+          </div>
+          <div class="form-group">
+            <label for="remaining_works" data-i18n="calc.remaining">Atlikušie darbi</label>
+            <input type="number" id="remaining_works" name="remaining_works"
+                   min="1" max="50" step="1"
+                   value="{{ remaining_works or 5 }}" required>
+          </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center">
+          <span data-i18n="calc.calculate">Aprēķināt</span>
+        </button>
+      </form>
+    </div>
+
+    {# ── Current stats per subject ── #}
+    <div class="table-wrap">
+      <div class="table-header" data-i18n="calc.current_avgs">Pašreizējie vidējie</div>
+      <table>
+        <thead>
+          <tr>
+            <th data-i18n="col.subject">Priekšmets</th>
+            <th data-i18n="calc.avg_col">Vidējais</th>
+            <th data-i18n="calc.grades_col">Atzīmes</th>
+          </tr>
+        </thead>
+        <tbody>
+        {% for s in stats %}
+          <tr>
+            <td style="font-size:0.85rem">{{ s.subject }}</td>
+            <td>
+              {% if s.average is not none %}
+                {% if s.average >= 7 %}{% set cls = 'text-success' %}
+                {% elif s.average >= 5 %}{% set cls = 'text-warning' %}
+                {% else %}{% set cls = 'text-danger' %}{% endif %}
+                <strong class="{{ cls }}">{{ '%.2f'|format(s.average) }}</strong>
+              {% else %}
+                <span style="color:var(--text-muted)">—</span>
+              {% endif %}
+            </td>
+            <td style="color:var(--text-muted);font-size:0.8rem">{{ s.numeric_count }}/{{ s.total_count }}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  {# ── Result ── #}
+  <div>
+    {% if result %}
+    <div class="result-box {% if result.achievable %}success{% else %}error{% endif %}">
+      <div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.05em">
+        {{ selected_subject }}
+      </div>
+      <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:8px">
+        <div class="result-required {% if result.achievable %}text-success{% else %}text-danger{% endif %}">
+          {% if result.required_avg %}
+            {{ '%.2f'|format(result.required_avg) }}
+          {% else %}—{% endif %}
+        </div>
+        <div style="font-size:0.9rem;color:var(--text-muted)" data-i18n="calc.needed_avg">nepieciešamais vidējais</div>
+      </div>
+      <p style="font-size:0.9rem">{{ result.message }}</p>
+      <div style="display:flex;gap:20px;margin-top:12px;font-size:0.82rem;color:var(--text-muted)">
+        <span>
+          <span data-i18n="calc.current_avg_label">Pašreizējais vidējais:</span>
+          <strong style="color:var(--text)">{{ '%.2f'|format(result.current_avg) if result.current_avg else '—' }}</strong>
+        </span>
+        <span>
+          <span data-i18n="calc.desired">Vēlamais:</span>
+          <strong style="color:var(--text)">{{ desired_avg }}</strong>
+        </span>
+        <span>
+          <span data-i18n="calc.remaining_works">Atlikušie darbi:</span>
+          <strong style="color:var(--text)">{{ remaining_works }}</strong>
+        </span>
+      </div>
+    </div>
+
+    {# ── Scenario table ── #}
+    {% if scenario_table %}
+    <div class="table-wrap">
+      <div class="table-header" data-i18n="calc.scenarios">Scenāriju tabula</div>
+      <table>
+        <thead>
+          <tr>
+            <th data-i18n="calc.works_col">Darbi</th>
+            <th data-i18n="calc.needed_col">Nepieciešamais vidējais</th>
+            <th data-i18n="calc.achievable_col">Sasniedzams?</th>
+          </tr>
+        </thead>
+        <tbody>
+        {% for row in scenario_table %}
+          <tr {% if row.remaining_works == remaining_works %}style="background:rgba(99,102,241,0.07)"{% endif %}>
+            <td style="font-weight:{% if row.remaining_works == remaining_works %}700{% else %}400{% endif %}">
+              {{ row.remaining_works }}
+            </td>
+            <td>
+              {% if row.achievable and row.required_avg %}
+                {% if row.required_avg >= 7 %}{% set cls = 'text-success' %}
+                {% elif row.required_avg >= 5 %}{% set cls = 'text-warning' %}
+                {% else %}{% set cls = 'text-danger' %}{% endif %}
+                <span class="{{ cls }}">{{ '%.2f'|format(row.required_avg) }}</span>
+              {% elif not row.achievable %}
+                <span class="text-danger" data-i18n="calc.impossible">Neiespējami</span>
+              {% else %}
+                <span class="text-success" data-i18n="calc.achieved">Jau sasniegts</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if row.achievable %}
+                <span class="text-success">✓</span>
+              {% else %}
+                <span class="text-danger">✗</span>
+              {% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+
+    {% else %}
+    <div class="empty-state" style="padding:40px">
+      <div class="empty-state-icon">—</div>
+      <div class="empty-state-title" data-i18n="calc.choose_params">Izvēlieties priekšmetu un parametrus</div>
+      <p style="margin-top:8px" data-i18n="calc.result_here">Aprēķina rezultāts parādīsies šeit.</p>
+    </div>
+    {% endif %}
+  </div>
+
+</div>
+{% endblock %}

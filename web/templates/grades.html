@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}e-klase Analytics{% endblock %}
+{% block page_attrs %}data-i18n="page.grades"{% endblock %}
+{% block page_title %}Visas atzīmes{% endblock %}
+
+{% block content %}
+
+{% if grades %}
+<div class="table-wrap">
+  <div class="table-header" style="display:flex;align-items:center;justify-content:space-between">
+    <span data-i18n="page.grades">Visas atzīmes</span>
+    <span style="color:var(--text-muted);font-size:0.8rem" data-i18n="grades.newest_first">kārtots: jaunākais vispirms</span>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th data-i18n="col.grade">Atzīme</th>
+        <th data-i18n="col.subject">Priekšmets</th>
+        <th data-i18n="col.type">Veids</th>
+        <th data-i18n="col.lesson_topic">Stundas tēma</th>
+        <th data-i18n="col.work_date">Darba datums</th>
+        <th data-i18n="col.appeared">Pievienota</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for g in grades %}
+      {% set val = g.value %}
+      {% if val and '%' in val %}
+        {% set pct = val | replace('%', '') | replace(',', '.') | trim | float(default=0) %}
+        {% if pct < 20 %}{% set cls = 'grade-low' %}
+        {% else %}{% set cls = 'grade-high' %}{% endif %}
+      {% else %}
+        {% set num = val | float(default=0) %}
+        {% if num >= 7 %}{% set cls = 'grade-high' %}
+        {% elif num >= 5 %}{% set cls = 'grade-mid' %}
+        {% elif num >= 1 %}{% set cls = 'grade-low' %}
+        {% else %}{% set cls = 'grade-other' %}{% endif %}
+      {% endif %}
+      <tr>
+        <td><span class="grade-badge {{ cls }}">{{ val or '—' }}</span></td>
+        <td style="font-weight:500">{{ g.subject or '—' }}</td>
+        <td style="color:var(--text-muted);font-size:0.8rem">
+          {{ g.lesson_type_abbr or g.lesson_type or '—' }}
+        </td>
+        <td style="color:var(--text-muted);font-size:0.8rem;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"
+            title="{{ g.lesson_topic or '' }}">
+          {{ g.lesson_topic or '' }}
+        </td>
+        <td style="color:var(--text-muted);font-size:0.8rem">
+          {{ g.date[:10] if g.date else '—' }}
+        </td>
+        <td style="color:var(--text-muted);font-size:0.8rem">
+          {{ g.time_created[:10] if g.time_created else '—' }}
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+  <div class="empty-state">
+    <div class="empty-state-icon">—</div>
+    <div class="empty-state-title" data-i18n="grades.no_grades">Atzīmju vēl nav</div>
+    <p data-i18n="grades.load_grades">Spiediet «Atjaunot» augšpusē, lai ielādētu atzīmes</p>
+  </div>
+{% endif %}
+
+{% endblock %}

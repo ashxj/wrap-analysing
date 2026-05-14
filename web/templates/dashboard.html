@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% block title %}e-klase Analytics{% endblock %}
+{% block page_attrs %}data-i18n="page.dashboard"{% endblock %}
+{% block page_title %}Panelis{% endblock %}
+
+{% block content %}
+
+{# ── Stat cards ── #}
+<div class="cards-grid">
+  <div class="card card-accent">
+    <div class="card-label" data-i18n="dash.overall_avg">Kopējais vidējais</div>
+    <div class="card-value text-accent">{{ overall_avg or '—' }}</div>
+    <div class="card-sub" data-i18n="dash.all_subjects">pa visiem priekšmetiem</div>
+  </div>
+  <div class="card">
+    <div class="card-label" data-i18n="dash.grades_received">Saņemtās atzīmes</div>
+    <div class="card-value">{{ total_grades }}</div>
+    <div class="card-sub" data-i18n="dash.full_period">par visu periodu</div>
+  </div>
+  <div class="card card-success">
+    <div class="card-label" data-i18n="dash.best_subject">Labākais priekšmets</div>
+    <div class="card-value text-success" style="font-size:1.4rem;word-break:break-word">
+      {{ best_subject.subject if best_subject else '—' }}
+    </div>
+    <div class="card-sub">{{ ('%.2f'|format(best_subject.average)) if best_subject and best_subject.average else '' }}</div>
+  </div>
+  <div class="card card-{% if weak_count > 0 %}danger{% else %}success{% endif %}">
+    <div class="card-label" data-i18n="dash.weak_subjects">Vāji priekšmeti</div>
+    <div class="card-value text-{% if weak_count > 0 %}danger{% else %}success{% endif %}">{{ weak_count }}</div>
+    <div class="card-sub">
+      <span data-i18n="dash.below">zem</span> {{ threshold | int }}
+    </div>
+  </div>
+</div>
+
+{# ── Charts ── #}
+<div class="charts-row">
+  <div class="chart-container">
+    <div class="chart-title" data-i18n="dash.weekly_trend">Vidējais pa nedēļām</div>
+    <div style="height:220px">
+      <canvas id="trend-chart"></canvas>
+    </div>
+  </div>
+  <div class="chart-container">
+    <div class="chart-title" data-i18n="dash.subject_avg">Vidējais pa priekšmetiem</div>
+    <div style="height:220px">
+      <canvas id="subject-bar-chart"></canvas>
+    </div>
+  </div>
+</div>
+
+{# ── Recent grades ── #}
+<div class="table-wrap">
+  <div class="table-header" data-i18n="dash.recent_grades">Pēdējās atzīmes</div>
+  {% if recent_grades %}
+  <table>
+    <thead>
+      <tr>
+        <th data-i18n="col.grade">Atzīme</th>
+        <th data-i18n="col.subject">Priekšmets</th>
+        <th data-i18n="col.work_type">Darba veids</th>
+        <th data-i18n="col.topic">Tēma</th>
+        <th data-i18n="col.date">Datums</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for g in recent_grades %}
+      {% set val = g.value %}
+      {% if val and '%' in val %}
+        {% set pct = val | replace('%', '') | replace(',', '.') | trim | float(default=0) %}
+        {% if pct < 20 %}{% set cls = 'grade-low' %}
+        {% else %}{% set cls = 'grade-high' %}{% endif %}
+      {% else %}
+        {% set num = val | float(default=0) %}
+        {% if num >= 7 %}{% set cls = 'grade-high' %}
+        {% elif num >= 5 %}{% set cls = 'grade-mid' %}
+        {% elif num >= 1 %}{% set cls = 'grade-low' %}
+        {% else %}{% set cls = 'grade-other' %}{% endif %}
+      {% endif %}
+      <tr>
+        <td><span class="grade-badge {{ cls }}">{{ val or '—' }}</span></td>
+        <td>{{ g.subject or '—' }}</td>
+        <td style="color:var(--text-muted);font-size:0.8rem">{{ g.lesson_type or '—' }}</td>
+        <td style="color:var(--text-muted);font-size:0.8rem;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+          {{ g.lesson_topic or '' }}
+        </td>
+        <td style="color:var(--text-muted);font-size:0.8rem">
+          {% if g.time_created %}
+            {{ g.time_created[:10] }}
+          {% elif g.date %}
+            {{ g.date[:10] }}
+          {% else %}—{% endif %}
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+    <div class="empty-state">
+      <div class="empty-state-icon">—</div>
+      <div class="empty-state-title" data-i18n="dash.no_grades">Atzīmju vēl nav</div>
+      <p data-i18n="dash.load_grades">Spiediet «Atjaunot», lai ielādētu atzīmes no e-klase.lv</p>
+    </div>
+  {% endif %}
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+  initTrendChart('trend-chart', {{ trend_labels | safe }}, {{ trend_data | safe }});
+  initSubjectBar('subject-bar-chart', {{ subject_labels | safe }}, {{ subject_data | safe }});
+</script>
+{% endblock %}

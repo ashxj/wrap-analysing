@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+{% block title %}e-klase Analytics{% endblock %}
+{% block page_attrs %}data-i18n="page.subjects"{% endblock %}
+{% block page_title %}Priekšmetu analīze{% endblock %}
+
+{% block content %}
+
+{% if stats %}
+  {% set weak_list = stats | selectattr('is_weak') | list %}
+  {% if weak_list %}
+  <div class="result-box error" style="margin-bottom:24px">
+    <strong>
+      <span data-i18n="subjects.weak_label">Vāji priekšmeti (vidējais &lt; </span>{{ threshold | int }}):
+    </strong>
+    {% for s in weak_list %}
+      <span style="margin-left:8px">{{ s.subject }}
+        ({{ '%.2f'|format(s.average) }}){% if not loop.last %},{% endif %}
+      </span>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {% for stat in stats %}
+  <div class="subject-card">
+    <div class="subject-header" data-idx="{{ loop.index }}">
+      <div style="display:flex;align-items:center;gap:10px">
+        <span class="subject-name">{{ stat.subject }}</span>
+        {% if stat.is_weak %}
+          <span class="weak-badge" data-i18n="subjects.weak_badge">Vājš</span>
+        {% endif %}
+      </div>
+      <div class="subject-meta">
+        {% if stat.average is not none %}
+          {% if stat.average >= 7 %}{% set pill_cls = 'avg-high' %}
+          {% elif stat.average >= 5 %}{% set pill_cls = 'avg-mid' %}
+          {% else %}{% set pill_cls = 'avg-low' %}{% endif %}
+          <span class="avg-pill {{ pill_cls }}">{{ '%.2f'|format(stat.average) }}</span>
+        {% else %}
+          <span class="avg-pill avg-none" data-i18n="subjects.no_ratings">nav atzīmju</span>
+        {% endif %}
+        <span style="color:var(--text-muted);font-size:0.8rem">
+          {{ stat.total_count }}&nbsp;<span data-i18n="subjects.grades_abbr">atk.</span>
+        </span>
+        <span class="chevron">▼</span>
+      </div>
+    </div>
+
+    <div class="subject-body">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px">
+
+        {# Left: breakdown by lesson type #}
+        <div>
+          <div class="section-title" data-i18n="subjects.breakdown">Sadalījums pa darbu veidiem</div>
+          {% if stat.lesson_type_breakdown %}
+            {% for lt in stat.lesson_type_breakdown %}
+              <div class="lesson-type-row">
+                <span>{{ lt.lesson_type }}</span>
+                <div style="display:flex;align-items:center;gap:10px">
+                  <div class="progress-bar" style="width:80px">
+                    <div class="progress-fill" style="width:{{ (lt.average / 10 * 100) | int }}%;background:{% if lt.average >= 7 %}#22c55e{% elif lt.average >= 5 %}#f59e0b{% else %}#ef4444{% endif %}"></div>
+                  </div>
+                  <span style="font-weight:600;font-size:0.85rem;min-width:32px">{{ '%.1f'|format(lt.average) }}</span>
+                  <span style="color:var(--text-muted);font-size:0.75rem">×{{ lt.count }}</span>
+                </div>
+              </div>
+            {% endfor %}
+            <div style="height:160px;margin-top:16px">
+              <canvas id="chart-lt-{{ loop.index }}"></canvas>
+            </div>
+          {% else %}
+            <p style="color:var(--text-muted);font-size:0.85rem" data-i18n="subjects.no_data_types">Nav datu par darbu veidiem.</p>
+          {% endif %}
+        </div>
+
+        {# Right: recent grades #}
+        <div>
+          <div class="section-title" data-i18n="subjects.recent_grades">Pēdējās atzīmes</div>
+          <table style="font-size:0.82rem">
+            <thead>
+              <tr>
+                <th style="padding:6px 8px" data-i18n="col.grade_abbr">atk.</th>
+                <th style="padding:6px 8px" data-i18n="col.type">Veids</th>
+                <th style="padding:6px 8px" data-i18n="col.topic">Tēma</th>
+                <th style="padding:6px 8px" data-i18n="col.date">Datums</th>
+              </tr>
+            </thead>
+            <tbody>
+            {% for g in stat.sorted_grades[:8] %}
+              {% set val = g.value %}
+              {% if val and '%' in val %}
+                {% set pct = val | replace('%', '') | replace(',', '.') | trim | float(default=0) %}
+                {% if pct < 20 %}{% set cls = 'grade-low' %}
+                {% else %}{% set cls = 'grade-high' %}{% endif %}
+              {% else %}
+                {% set num = val | float(default=0) %}
+                {% if num >= 7 %}{% set cls = 'grade-high' %}
+                {% elif num >= 5 %}{% set cls = 'grade-mid' %}
+                {% elif num >= 1 %}{% set cls = 'grade-low' %}
+                {% else %}{% set cls = 'grade-other' %}{% endif %}
+              {% endif %}
+              <tr>
+                <td style="padding:5px 8px">
+                  <span class="grade-badge {{ cls }}" style="min-width:28px;height:28px;font-size:0.78rem;padding:0 5px">{{ val or '—' }}</span>
+                </td>
+                <td style="padding:5px 8px;color:var(--text-muted)">{{ g.lesson_type_abbr or g.lesson_type or '—' }}</td>
+                <td style="padding:5px 8px;color:var(--text-muted);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"
+                    title="{{ g.lesson_topic or '' }}">{{ g.lesson_topic or '' }}</td>
+                <td style="padding:5px 8px;color:var(--text-muted)">{{ g.date[:10] if g.date else '—' }}</td>
+              </tr>
+            {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+{% else %}
+  <div class="empty-state">
+    <div class="empty-state-icon">—</div>
+    <div class="empty-state-title" data-i18n="subjects.no_data">Nav priekšmetu datu</div>
+    <p data-i18n="subjects.load">Spiediet «Atjaunot», lai ielādētu atzīmes.</p>
+  </div>
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+const ltData = {{ stats | tojson }};
+const chartInited = {};
+
+document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('.subject-header').forEach(header => {
+    header.addEventListener('click', () => {
+      const body = header.nextElementSibling;
+      const chevron = header.querySelector('.chevron');
+      if (!body) return;
+      const opening = !body.classList.contains('open');
+      body.classList.toggle('open');
+      if (chevron) chevron.classList.toggle('rotated');
+      if (opening) {
+        const idx = parseInt(header.dataset.idx, 10) - 1;
+        if (!chartInited[idx] && ltData[idx]) {
+          const breakdown = ltData[idx].lesson_type_breakdown || [];
+          if (breakdown.length) {
+            const canvasId = 'chart-lt-' + (idx + 1);
+            const labels = breakdown.map(b => b.lesson_type);
+            const data = breakdown.map(b => b.average);
+            initSubjectDetailBar(canvasId, labels, data);
+          }
+          chartInited[idx] = true;
+        }
+      }
+    });
+  });
+});
+</script>
+{% endblock %}
