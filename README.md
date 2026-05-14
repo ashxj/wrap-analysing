@@ -1,6 +1,7 @@
 # e-klase Analytics
 
 Rīks e-klase.lv atzīmju izgūšanai, apstrādei un analīzei. Sastāv no divām daļām: **parsera** (Node.js) un **tīmekļa lietotnes** (Python/Flask).
+<img width="2878" height="1430" alt="image" src="https://github.com/user-attachments/assets/ea0e156f-b37d-4954-a9e8-53248503e982" />
 
 ---
 
